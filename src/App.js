@@ -209,7 +209,7 @@ function App() {
   const [separationVel, setSeparationVel] = useState(1000);
   const [alignmentVel, setAlignmentVel] = useState(1000);
 
-  const [openedCard, setOpenedCard] = useState(false);
+  const [openedCard, setOpenedCard] = useState(true);
 
   useEffect(() => {
     const mouseMove = (ev) => {
