@@ -3,30 +3,33 @@ import { Canvas, useFrame } from 'react-three-fiber';
 import * as THREE from 'three';
 import { Box, OrbitControls, Sphere, TransformControls } from 'drei';
 import './App.css';
+import { Vector2 } from 'three';
 
-const boxLimit = 15;
-let followMouseControl = false;
+let boxLimit = 15;
+let followLeaderControl = false;
+let followLeaVelControl = 1000;
 let maxVelocityControl =  0.05;
 let cohesionVelControl = 1000;
 let separationVelControl = 1000;
 let alignmentVelControl = 1000;
-
-const mouse = {
-  x: 0,
-  y: 0
-}
+let fieldOfViewControl = 15;
+let separationDistanceControl = 2;
 
 
 //MATERIALS
+const texture = new THREE.TextureLoader().load( 'cube_texture.png' );
 const material = new THREE.MeshBasicMaterial({
-  color: '#ff0000',
-  opacity: 0.2,
-  wireframe: true,
+  map: texture,
+  side: THREE.DoubleSide,
   transparent: true,
 });
 
 const material2 = new THREE.MeshBasicMaterial({
   color: new THREE.Color('#ffffff')
+});
+
+const material3 = new THREE.MeshBasicMaterial({
+  color: '#ff0000',
 });
 
 //Aux functions
@@ -78,23 +81,36 @@ const vectorMagnitude = (v) => {
   return Math.sqrt(Math.pow(v.x, 2), Math.pow(v.y, 2), Math.pow(v.z, 2), )
 }
 
+const getNearBirds = (birds, currentBird) => {
+  //birds[0].material = material;
+  let resBirds = [];
+  birds.forEach((bird) => {
+    if(currentBird.position.distanceTo(bird.position) < fieldOfViewControl) {
+      resBirds.push(bird);
+    }
+  });
+  return resBirds;
+  //return birds;
+}
+
 //Algorithm functions
 const getCohesionVel = (currentBird) => {
   let resVec = new THREE.Vector3(0,0,0);
-
-  currentBird.parent.children.forEach((bird) => {
+  const nearBirds = getNearBirds(currentBird.parent.children, currentBird);
+  nearBirds.forEach((bird) => {
     if(bird !== currentBird) {
       resVec = vectorSum(resVec, bird.position);
     }
   });
-  resVec = vectorDivEscalar(resVec, currentBird.parent.children.length - 1);
+  resVec = vectorDivEscalar(resVec, nearBirds.length - 1);
   return vectorDivEscalar(vectorSubs(resVec, currentBird.position), cohesionVelControl)
 }
 
 const getSeparationVel = (currentBird) => {
   let resVec = new THREE.Vector3(0,0,0);
-  currentBird.parent.children.forEach((bird) => {
-    if(bird !== currentBird && bird.position.distanceTo(currentBird.position) < 2) {
+  const nearBirds = getNearBirds(currentBird.parent.children, currentBird);
+  nearBirds.forEach((bird) => {
+    if(bird !== currentBird && bird.position.distanceTo(currentBird.position) < separationDistanceControl) {
       resVec = vectorSubs(resVec, vectorSubs(bird.position, currentBird.position))
     }
   });
@@ -103,12 +119,13 @@ const getSeparationVel = (currentBird) => {
 
 const getAlignmentVel = (currentBird) => {
   let resVec = new THREE.Vector3(0,0,0);
-  currentBird.parent.children.forEach((bird) => {
+  const nearBirds = getNearBirds(currentBird.parent.children, currentBird);
+  nearBirds.forEach((bird) => {
     if(bird !== currentBird) {
       resVec = vectorSum(resVec, currentBird.velocity);
     }
   });
-  resVec = vectorDivEscalar(resVec, currentBird.parent.children.length - 1);
+  resVec = vectorDivEscalar(resVec, nearBirds.length - 1);
   return vectorDivEscalar(vectorSubs(resVec, currentBird.velocity), alignmentVelControl);
 }
 
@@ -122,11 +139,6 @@ const limitVelocity = (currentBird) => {
 
 const getWindVel = () => {
   return new THREE.Vector3(0.001,0,0);
-}
-
-const getMousePositionVel = (currentBird) => {
-  const resVec = new THREE.Vector3(-mouse.x * boxLimit * 2.2,mouse.y * boxLimit,0);
-  return vectorDivEscalar(vectorSubs(resVec, currentBird.position),1000);
 }
 
 const getBoundPosition = (currentBird) => {
@@ -152,33 +164,55 @@ const getBoundPosition = (currentBird) => {
 }
 
 
-
-const Flock = ({ position, rotation }) => {
+const Flock = ({ position, rotation, index }) => {
   const birdRef = useRef();
 
   useEffect(() => {
     birdRef.current.velocity = new THREE.Vector3(0,0,0);
   }, []);
 
-  
+  const getRandomNum = (max, min) => {
+    return (Math.random() * (max - min )) + min;
+  }
 
   useFrame(() => {
     if (birdRef.current) {
 
-      const velO = getCohesionVel(birdRef.current);
+      const vel0 = getCohesionVel(birdRef.current);
       const vel1 = getSeparationVel(birdRef.current);
       const vel2 = getAlignmentVel(birdRef.current);
-
       const vel3 = getBoundPosition(birdRef.current);
+      let vel4 = new THREE.Vector3(0,0,0);
+
       //const vel4 = getWindVel();
-
-      const velocitiesVector = [birdRef.current.velocity, velO, vel1,vel2,vel3];
-
-      const vel5 = getMousePositionVel(birdRef.current);
-      if(followMouseControl) {
-        velocitiesVector.push(vel5);
+      //const vel4 = getRandomVel();
+      if(followLeaderControl && index === 0) {
+        birdRef.current.material = material3;
+        birdRef.current.scale.set(0.2, 0.2, 0.2);
+      } else if(followLeaderControl) {
+        vel4 = vectorDivEscalar(vectorSubs(birdRef.current.parent.children[0].position, birdRef.current.position), followLeaVelControl);
+      } else if(index === 0){
+        birdRef.current.material = material2;
+        birdRef.current.scale.set(0.1, 0.02, 0.2);
       }
 
+      if(!vel0.x || followLeaderControl && index === 0) {
+        vel0.x = getRandomNum(0.02, -0.02);
+        vel0.y = getRandomNum(0.02, -0.02);
+        vel0.z = getRandomNum(0.02, -0.02);
+      } 
+      if(!vel1.x || followLeaderControl && index === 0) {
+        vel1.x = getRandomNum(0.02, -0.02);
+        vel1.y = getRandomNum(0.02, -0.02);
+        vel1.z = getRandomNum(0.02, -0.02);
+      } 
+      if(!vel2.x || followLeaderControl && index === 0) {
+        vel2.x = getRandomNum(0.02, -0.02);
+        vel2.y = getRandomNum(0.02, -0.02);
+        vel2.z = getRandomNum(0.02, -0.02);
+      }
+
+      const velocitiesVector = [birdRef.current.velocity, vel0, vel1,vel2,vel3, vel4];
 
       birdRef.current.velocity = multipleVectorSum(velocitiesVector);
       const newPosition = vectorSum(birdRef.current.velocity, birdRef.current.position);
@@ -201,7 +235,9 @@ const Flock = ({ position, rotation }) => {
 
 
 function App() {
-  const [followMouse, setFollowMouse] = useState(false);
+  const [followLeader, setFollowLeader] = useState(false);
+  const [followLeadVel, setFollowLeadVel] = useState(1000);
+
   const [population, setPopulation] = useState(100);
   const [velocity, setVelocity] = useState(0.05);
 
@@ -209,25 +245,23 @@ function App() {
   const [separationVel, setSeparationVel] = useState(1000);
   const [alignmentVel, setAlignmentVel] = useState(1000);
 
+  const [separationDistance, setSeparationDistance] = useState(2);
+  const [fieldOfView, setFieldOfView] = useState(15);
+
   const [openedCard, setOpenedCard] = useState(true);
 
-  useEffect(() => {
-    const mouseMove = (ev) => {
-      mouse.x = ( ev.clientX / window.innerWidth ) * 2 - 1;
-      mouse.y = - ( ev.clientY / window.innerHeight ) * 2 + 1;
-    }
-    document.addEventListener("mousemove", mouseMove);
-    return () => document.removeEventListener("mousemove", mouseMove);
-  }, []);
+  const [boxSize, setBoxSize] = useState(30);
+
 
   useEffect(() => {
-    followMouseControl = followMouse;
-  }, [followMouse]);
-
+    followLeaderControl = followLeader;
+  }, [followLeader]);
+  useEffect(() => {
+    followLeaVelControl = followLeadVel;
+  }, [followLeadVel]);
   useEffect(() => {
     maxVelocityControl = velocity;
   }, [velocity]);
-
   useEffect(() => {
     cohesionVelControl = cohesionVel;
   }, [cohesionVel]);
@@ -237,6 +271,15 @@ function App() {
   useEffect(() => {
     alignmentVelControl = alignmentVel;
   }, [alignmentVel]);
+  useEffect(() => {
+    separationDistanceControl = separationDistance;
+  }, [separationDistance]);
+  useEffect(() => {
+    fieldOfViewControl = fieldOfView;
+  }, [fieldOfView]);
+  useEffect(() => {
+    boxLimit = boxSize / 2;
+  }, [boxSize]);
 
   return (
     <div className="App">
@@ -246,17 +289,6 @@ function App() {
         </div>
         {openedCard && (
           <>
-        <div className="controls-control first-control">
-          <div className="control-title">
-            Follow mouse:
-          </div>
-          <div className="control-action">
-          <label class="switch">
-            <input type="checkbox"  checked={followMouse} onChange={() => {setFollowMouse(!followMouse)}}/>
-            <span class="slider round"></span>
-          </label>
-          </div>
-        </div>
         <div className="controls-control">
           <div className="control-title">
             {`Population: (${population})`}
@@ -264,6 +296,16 @@ function App() {
           <div className="control-action slidecontainer">
             <input type="range" min="2" max="250" value={population.toString()} class="range-slider" id="myRange" onChange={(ev) => {
               setPopulation(parseInt(ev.target.value))
+            }} />
+          </div>
+        </div>
+        <div className="controls-control">
+          <div className="control-title">
+            {`Box size: (${Math.floor((boxSize-10)/90*100)}%)`}
+          </div>
+          <div className="control-action slidecontainer">
+            <input type="range" min="10" max="100" value={boxSize.toString()} class="range-slider" id="myRange" onChange={(ev) => {
+              setBoxSize(parseInt(ev.target.value))
             }} />
           </div>
         </div>
@@ -307,6 +349,55 @@ function App() {
             }} />
           </div>
         </div>
+        <div className="controls-control">
+          <div className="control-title">
+            {`Separation distance: (${Math.floor(((separationDistance - 0.5) / 4.5) * 100)}%)`}
+          </div>
+          <div className="control-action slidecontainer">
+            <input type="range" min="5" max="50" value={separationDistance*10} class="range-slider" id="myRange" onChange={(ev) => {
+              setSeparationDistance(parseFloat(ev.target.value)/10)
+            }} />
+          </div>
+        </div>
+        <div className="controls-control">
+          <div className="control-title">
+            {`Field of view: (${Math.floor(((fieldOfView - 3) / 12) * 100)}%)`}
+          </div>
+          <div className="control-action slidecontainer">
+            <input type="range" min="3" max="15" value={fieldOfView} class="range-slider" id="myRange" onChange={(ev) => {
+              setFieldOfView(parseInt(ev.target.value))
+            }} />
+          </div>
+        </div>
+        <div className="controls-control first-control">
+          <div className="control-title">
+            Follow leader:
+          </div>
+          <div className="control-action">
+          <label class="switch">
+            <input type="checkbox"  checked={followLeader} onChange={() => {setFollowLeader(!followLeader)}}/>
+            <span class="slider round"></span>
+          </label>
+          </div>
+        </div>
+        <div className="controls-control">
+          <div className="control-title">
+            {`Follow lead. velocity: (${Math.floor((2200 - followLeadVel)/20)}%)`}
+          </div>
+          <div className="control-action slidecontainer">
+            <input type="range" min="200" max="2000" value={2200 - followLeadVel} class="range-slider" id="myRange" onChange={(ev) => {
+              setFollowLeadVel(2200 - parseInt(ev.target.value))
+            }} />
+          </div>
+        </div>
+        <div className="controls-info">
+          <div>
+          Based on Crag Reynolds' 1986 Boids algorithm
+          </div>
+          <a href="https://migueljimenezbenajes.com/" target="_blank">
+            Created by MJB 🐨
+          </a>
+        </div>
           </>
         )}
         
@@ -321,7 +412,7 @@ function App() {
         }}
         shadowMap
       >
-        <directionalLight
+        {/* <directionalLight
           position={[2.5, 50, 5]}
           intensity={2}
           shadow-mapSize-width={1024}
@@ -331,17 +422,18 @@ function App() {
           shadow-camera-right={10}
           shadow-camera-top={10}
           shadow-camera-bottom={-10}
-        />
+        /> */}
         <Box
           material={material}
-          scale={[30, 30, 30]}
+          scale={[boxSize, boxSize, boxSize]}
         />
         <OrbitControls />
 
         <group>
           <Suspense fallback={<Box />}>
-            {Array(population).fill(null).map(() => (
+            {Array(population).fill(null).map((elem, index) => (
               <Flock
+                index={index}
                 position={[getRandomNumber(boxLimit/2 , -boxLimit/2), getRandomNumber(boxLimit/2, -boxLimit/2), getRandomNumber(boxLimit/2, -boxLimit/2)]}
                 rotation={[getRandomNumber(Math.PI, -Math.PI), getRandomNumber(Math.PI, -Math.PI), getRandomNumber(Math.PI, -Math.PI)]}
               />

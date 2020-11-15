@@ -1,5 +1,6 @@
 .App {
   text-align: center;
+  font-family: "Goldman", cursive;
 }
 
 .App-logo {
@@ -18,22 +19,40 @@ canvas {
   top: 24px;
   left: 24px;
   z-index: 9;
-  background: #2e3544;
+  background: rgba(46, 53, 68, 0.5);
+  backdrop-filter: blur(24px);
   padding: 24px;
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.8);
   text-align: left;
-  width: 300px;
+  width: 320px;
 }
 
 .controls-title {
+  color: rgb(196 97 97);
   font-size: 26px;
   padding-bottom: 6px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   margin-bottom: 20px;
 }
 
+.controls-info {
+  margin-top: 24px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  width: 100%;
+}
+
+.controls-info a {
+  color: rgb(196 97 97);
+  text-decoration: none;
+  text-align: center;
+  width: 100%;
+}
+
 .controls-control {
+  font-size: 14px;
   display: flex;
   justify-content: space-between;
   margin-top: 8px;
@@ -128,14 +147,25 @@ input:checked + .slider:before {
   background: white;
   cursor: pointer;
   border-radius: 50%;
+  transition: width 0.2s, height 0.2s ease-in;
+}
+
+.range-slider:hover::-webkit-slider-thumb {
+  width: 24px;
+  height: 24px;
 }
 
 .range-slider::-moz-range-thumb {
-  width: 25px;
-  height: 25px;
+  width: 18px;
+  height: 18px;
   background: white;
   cursor: pointer;
   border-radius: 50%;
+}
+
+.range-slider:hover::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
 }
 
 @media (max-width: 500px) {
