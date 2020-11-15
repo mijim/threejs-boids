@@ -284,8 +284,9 @@ function App() {
   return (
     <div className="App">
       <div className="controls-container">
-        <div className="controls-title" onClick={() => setOpenedCard(!openedCard)}>
-          Three.js - Boids
+        <div className={`controls-title ${openedCard?'opened':''}`} onClick={() => setOpenedCard(!openedCard)}>
+          <div>Three.js - Boids</div>
+          <div>{openedCard?'-':'+'}</div>
         </div>
         {openedCard && (
           <>
