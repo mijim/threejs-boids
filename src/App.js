@@ -142,7 +142,7 @@ const getWindVel = () => {
 }
 
 const getBoundPosition = (currentBird) => {
-  const bounds = 15;
+  const bounds = boxLimit;
   const velFactor = 0.01;
   const resVec = new THREE.Vector3(0,0,0);
   if(currentBird.position.x < -bounds) {
